@@ -409,7 +409,7 @@ public class Calculator {
     }
 
     private final static String HELP_STRING = "To quit write 'quit'/'exit'.\n" +
-            "You can use following functions:\n"
+            "You can use following functions (e.g. 'sqrt(2)'):\n"
             + " - sqrt\n"
             + " - cbrt\n"
             + " - sin\n"
@@ -428,7 +428,7 @@ public class Calculator {
             + " - degree\n"
             + " - int/floor\n"
             + " - gamma\n" +
-            "You can use following operators:\n"
+            "You can use following operators (e.g. '3*3'):\n"
             + " - '*'/'×'\n"
             + " - '/'/'÷'\n"
             + " - '+'\n"
@@ -440,7 +440,15 @@ public class Calculator {
             + " - e\n" +
             "You can use following flags:\n"
             + " - '--exponential'/'--e'/'--scientific'/'--s'\n"
-            + " - '--precision=99'/'--p=99'\n";
+            + " - '--precision=99'/'--p=99'\n" +
+            "You can check equality with a single '=':\n"
+            + " - e.g.: 1=1 → true\n" +
+            "You can assign variables:\n"
+            + " - ':=' [x:=5 → {x=5 → true}]\n"
+            + " - '*=' [x*=y → x:=x*y]\n"
+            + " - '/=' [x/=y → x:=x/y]\n"
+            + " - '+=' [x+=y → x:=x+y]\n"
+            + " - '-=' [x-=y → x:=x-y]\n";
 
     private static void displayHelp(Terminal terminal) throws IOException {
         writeToTerminal(terminal, HELP_STRING);
