@@ -1,0 +1,22 @@
+plugins {
+    id "java"
+    id "application"
+}
+
+group "org.example"
+version "1.0-SNAPSHOT"
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation "org.apfloat:apfloat:1.9.1"
+    implementation group: 'com.googlecode.lanterna', name: 'lanterna', version: '3.1.1'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+mainClassName = "Calculator"
