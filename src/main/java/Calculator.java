@@ -8,13 +8,16 @@ import org.apfloat.Apfloat;
 import org.apfloat.ApfloatMath;
 
 import java.io.IOException;
+import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.function.Function;
+import java.util.regex.Pattern;
 
 public class Calculator {
-    private static final HashMap<String, Apfloat> calculationCache = new HashMap<>();
     private static final HashMap<String, String> variables = new HashMap<>();
 
     private final int maxPrecision;
@@ -23,6 +26,8 @@ public class Calculator {
     private final String inputStr;
 
     private int historyIndex = 1;
+
+    private static final int DEFAULT_DECIMALS = 20;
 
     Calculator(String inputStr, int maxPrecision) {
         this.inputStr = sanitizeInputString(inputStr);
@@ -68,15 +73,30 @@ public class Calculator {
                 .replace("9(", "9*(");
     }
 
+    //private static final Pattern ALMOST_ZERO = Pattern.compile("^0+1$");
+    private static final Pattern ALMOST_ONE = Pattern.compile("^9+$");
     public Apfloat calculate() {
-        if (inputStr.contains("(@)")) { //uses answer and answer changes
-            return parse();
-        }
-        if (calculationCache.containsKey(inputStr)) {
-            return calculationCache.get(inputStr);
-        }
         Apfloat result = parse();
-        calculationCache.put(inputStr, result);
+        if (result.isInteger() || forcePrecision) {
+            return result;
+        }
+        String[] arr = result.toString(true).split("\\.");
+        if (arr.length != 2) {
+            return result;
+        }
+        String decimals = arr[1];
+        if (decimals.length() < DEFAULT_DECIMALS - 1) {
+            return result;
+        }
+        /*
+        if (ALMOST_ZERO.matcher(decimals).matches()) {
+            System.out.println(decimals);
+            return result.floor();
+        }
+        */
+        if (ALMOST_ONE.matcher(decimals).matches()) {
+            return result.ceil();
+        }
         return result;
     }
 
@@ -103,11 +123,11 @@ public class Calculator {
             pos = -1;
             String str = x.toString(true);
             if (str.contains(".")) {
-                precision = str.lastIndexOf('.') + 16;
+                precision = str.lastIndexOf('.') + DEFAULT_DECIMALS;
                 b1 = true;
             } else {
                 if (precision > str.length() + 5) return x;
-                precision = str.length() + 16;
+                precision = str.length() + DEFAULT_DECIMALS;
             }
             if(precision > maxPrecision) {
                 precision = maxPrecision;
@@ -234,6 +254,10 @@ public class Calculator {
                     case "floor":
                     case "int":
                         x = x.floor();
+                    case "ceil":
+                        x = x.ceil();
+                    case "round":
+                        x = ApfloatMath.round(x, x.toString(true).split("\\.").length, RoundingMode.HALF_UP);
                         break;
                     default:
                         throw new RuntimeException("Unknown function: " + func);
@@ -420,7 +444,9 @@ public class Calculator {
             + " - w\n"
             + " - rad\n"
             + " - degree\n"
-            + " - int/floor\n"
+            + " - int/floor [rounding down]\n"
+            + " - ceil [rounding up]\n"
+            + " - round [rounding mode: half up]"
             + " - gamma\n" +
             "You can use following operators (e.g. '3*3'):\n"
             + " - '*'/'×'\n"
@@ -435,8 +461,12 @@ public class Calculator {
             "You can use following flags:\n"
             + " - '--exponential'/'--e'/'--scientific'/'--s'\n"
             + " - '--precision=99'/'--p=99'\n" +
-            "You can check equality with a single '=':\n"
-            + " - e.g.: 1=1 → true\n" +
+            "You can compare expressions:\n"
+            + " - 1=1=2-1 → true\n"
+            + " - 1<3<2*3 → true\n"
+            + " - 1<=3<=1*3 → true\n"
+            + " - 2*3>3>1 → true\n"
+            + " - 1*3>=3>=1 → true\n" +
             "You can assign variables:\n"
             + " - ':=' [x:=5 → {x=5 → true}]\n"
             + " - '*=' [x*=y → x:=x*y]\n"
@@ -520,7 +550,7 @@ public class Calculator {
         String result = handleEqualSigns(input, precision);
 
         if (result == null) {
-            result = new Calculator(input, precision).parse().toString(pretty);
+            result = new Calculator(input, precision).calculate().toString(pretty);
             if (!pretty) {
                 result = result.replace("e", "×10^");
             }
@@ -558,7 +588,7 @@ public class Calculator {
             return variables.get(name);
         }
 
-        String[] signs = new String[]{"=" /*, "<", ">", "<=", ">="*/};
+        String[] signs = new String[]{"<=", ">=", "=" , "<", ">"}; //first check the longer
         for (String sign : signs) {
             String result = handleSign(input, precision, historyIndex, sign);
             if (result != null) {
@@ -587,14 +617,39 @@ public class Calculator {
             if (containsNull) {
                 return "false";
             } else {
-                for (int i = 1; i < results.length; i++) {
-                    if (results[0].compareTo(results[i]) != 0) {
+                Function<Integer, Boolean> fun = getCompareFunctionBySign(sign);
+                for (int i = 0; i < results.length - 1; i++) {
+                    int comparator = results[i].compareTo(results[i + 1]);
+                    if (!fun.apply(comparator)) {
                         return "false";
                     }
+
                 }
                 return "true";
             }
         }
         return null;
+    }
+
+    private static Function<Integer, Boolean> getCompareFunctionBySign(String sign) {
+        switch (sign) {
+            case "=": {
+                return (i) -> i == 0;
+            }
+            case "<": {
+                return (i) -> i < 0;
+            }
+            case ">": {
+                return (i) -> i > 0;
+            }
+            case ">=": {
+                return (i) -> i >= 0;
+            }
+            case "<=": {
+                return (i) -> i <= 0;
+            }
+        }
+        System.err.println("Unknown operator: " + sign);
+        return (i) -> false;
     }
 }
