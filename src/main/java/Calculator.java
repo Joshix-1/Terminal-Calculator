@@ -2,11 +2,8 @@ import com.googlecode.lanterna.SGR;
 import com.googlecode.lanterna.TerminalPosition;
 import com.googlecode.lanterna.TextColor;
 import com.googlecode.lanterna.input.KeyStroke;
-import com.googlecode.lanterna.screen.Screen;
-import com.googlecode.lanterna.screen.TerminalScreen;
 import com.googlecode.lanterna.terminal.DefaultTerminalFactory;
 import com.googlecode.lanterna.terminal.Terminal;
-import com.sun.org.apache.xpath.internal.functions.Function2Args;
 import org.apfloat.Apfloat;
 import org.apfloat.ApfloatMath;
 
@@ -14,9 +11,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.LinkedList;
-import java.util.Scanner;
 import java.util.List;
-import java.util.function.Function;
 
 public class Calculator {
     private static final HashMap<String, Apfloat> calculationCache = new HashMap<>();
@@ -49,18 +44,17 @@ public class Calculator {
         return inputStr.toLowerCase()
                 .replaceAll("--[^\\s]+", "")
                 .replaceAll("\\s", "")
-                .replace("\"", "")
-                .replace("@", "")
+                .replaceAll("[\"@€]", "")
                 .replace("**", "^")
                 .replace("×", "*")
                 .replace("÷", "/")
-                .replace("ans", "(@)")
-                .replace("e", "(e)")
-                .replace("π", "(π)")
-                .replace("pi", "(π)")
-                .replace("τ", "(τ)")
-                .replace("tau", "(τ)")
-                .replace("rand()", "rand(1)")
+                .replaceAll("(?<![a-z])ans(?![a-z])", "(@)")
+                .replaceAll("(?<![a-z])π(?![a-z])", "(π)")
+                .replaceAll("(?<![a-z])pi(?![a-z])", "(π)")
+                .replaceAll("(?<![a-z])e(?![a-z])", "(€)")
+                .replaceAll("(?<![a-z])τ(?![a-z])", "(τ)")
+                .replaceAll("(?<![a-z])tau(?![a-z])", "(τ)")
+                .replaceAll("(?<![a-z])rand\\(\\)", "rand(1)")
                 .replace(")(", ")*(")
                 .replace("0(", "0*(")
                 .replace("1(", "1*(")
@@ -161,7 +155,7 @@ public class Calculator {
             x = new Apfloat(inputStr.substring(startPos, this.pos), precision);
         } else if (eat('π')) { //pi
             x = ApfloatMath.pi(precision);
-        } else if (eat('e')) { //e:
+        } else if (eat('€')) { //e:
             x = e(precision);
         } else if (eat('τ')) { //tau = 2pi
             x = ApfloatMath.pi(precision).multiply(new Apfloat(2, precision));
