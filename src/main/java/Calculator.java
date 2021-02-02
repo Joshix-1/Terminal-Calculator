@@ -29,8 +29,8 @@ public class Calculator {
 
     private static final int DEFAULT_DECIMALS = 20;
 
-    Calculator(String inputStr, int maxPrecision) {
-        this.inputStr = sanitizeInputString(inputStr);
+    Calculator(String inputStr, int maxPrecision, boolean sanitize) {
+        this.inputStr = sanitize ? sanitizeInputString(inputStr) : inputStr;
         if (maxPrecision == -1) {
             this.maxPrecision = 1000000;
         } else {
@@ -38,6 +38,10 @@ public class Calculator {
             this.precision = maxPrecision;
             forcePrecision = true;
         }
+    }
+
+    Calculator(String inputStr, int maxPrecision) {
+        this(inputStr, maxPrecision, true);
     }
 
     private Calculator setHistoryIndex(int i) {
@@ -367,7 +371,7 @@ public class Calculator {
                                         break;
                                     }
                                     try {
-                                        calculate(terminal, line.split("\\s"));
+                                        calculate(terminal, line);
                                     } catch (RuntimeException e) {
                                         writeToTerminal(terminal, e.getMessage() + "\n", TextColor.ANSI.RED);
                                     }
@@ -411,13 +415,13 @@ public class Calculator {
                         terminal.flush();
                     } else {
                         try {
-                            Thread.sleep(30);
+                            Thread.sleep(20);
                         } catch (InterruptedException ignored) {}
                     }
                 }
             } else {
                 Terminal terminal = new DefaultTerminalFactory(System.out, System.in, StandardCharsets.UTF_8).createTerminal();
-                calculate(terminal, args);
+                calculate(terminal, String.join(" ", args));
                 terminal.close();
                 System.exit(0);
             }
@@ -521,39 +525,46 @@ public class Calculator {
         writeToTerminal(terminal, str, null);
     }
 
-    private static void calculate(Terminal terminal, String[] inputArr) throws IOException {
+    private static void calculate(Terminal terminal, String input) throws IOException {
         long time = System.nanoTime();
 
-        StringBuilder sb = new StringBuilder(inputArr.length);
-        boolean pretty = true;
-        int precision = -1;
-        for (String s : inputArr) {
-            String arg = s.toLowerCase();
-            if (arg.startsWith("--")) {
-                if (arg.equals("--exponential") || arg.equals("--scientific")
-                        || arg.equals("--e") || arg.equals("--s")) {
-                    pretty = false;
-                } else if (arg.startsWith("--precision") || arg.startsWith("--p")) {
-                    try {
-                        precision = Math.min(69420, Integer.parseInt(arg.replaceAll("[^0-9]", "")));
-                    } catch (NumberFormatException e) {
-                        writeToTerminal(terminal, e.getMessage() + "\n", TextColor.ANSI.RED);
-                        writeToTerminal(terminal, "> ", TextColor.ANSI.GREEN);
+        String result;
+        try {
+            result = new Calculator(input, -1, false).calculate().toString(true);
+        } catch(Exception ignored) {
+            String[] inputArr = input.split("\\s+");
+            StringBuilder sb = new StringBuilder(inputArr.length);
+            boolean pretty = true;
+            int precision = -1;
+            for (String s : inputArr) {
+                String arg = s.toLowerCase();
+                if (arg.startsWith("--")) {
+                    if (arg.equals("--exponential") || arg.equals("--scientific")
+                            || arg.equals("--e") || arg.equals("--s")) {
+                        pretty = false;
+                    } else if (arg.startsWith("--precision") || arg.startsWith("--p")) {
+                        try {
+                            precision = Math.min(69420, Integer.parseInt(arg.replaceAll("[^0-9]", "")));
+                        } catch (NumberFormatException e) {
+                            writeToTerminal(terminal, e.getMessage() + "\n", TextColor.ANSI.RED);
+                            writeToTerminal(terminal, "> ", TextColor.ANSI.GREEN);
+                        }
                     }
+                } else {
+                    sb.append(arg);
                 }
-            } else {
-                sb.append(arg);
             }
-        }
 
-        String input = sb.toString();
-        String result = handleEqualSigns(input, precision);
+            input = sb.toString();
+            result = handleEqualSigns(input, precision);
 
-        if (result == null) {
-            result = new Calculator(input, precision).calculate().toString(pretty);
-            if (!pretty) {
-                result = result.replace("e", "×10^");
+            if (result == null) {
+                result = new Calculator(input, precision).calculate().toString(pretty);
+                if (!pretty) {
+                    result = result.replace("e", "×10^");
+                }
             }
+
         }
 
 
