@@ -29,7 +29,7 @@ public class Calculator {
     private static final int DEFAULT_DECIMALS = 20;
 
     Calculator(String inputStr, int maxPrecision) {
-        this.inputStr = inputStr;
+        this.inputStr = inputStr.replaceAll("--[^\\s]+", "");
         if (maxPrecision == -1) {
             this.maxPrecision = 1000000;
         } else {
