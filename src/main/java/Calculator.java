@@ -10,7 +10,6 @@ import org.apfloat.ApfloatMath;
 import java.io.IOException;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -29,8 +28,8 @@ public class Calculator {
 
     private static final int DEFAULT_DECIMALS = 20;
 
-    Calculator(String inputStr, int maxPrecision, boolean sanitize) {
-        this.inputStr = sanitize ? sanitizeInputString(inputStr) : inputStr;
+    Calculator(String inputStr, int maxPrecision) {
+        this.inputStr = inputStr;
         if (maxPrecision == -1) {
             this.maxPrecision = 1000000;
         } else {
@@ -40,41 +39,9 @@ public class Calculator {
         }
     }
 
-    Calculator(String inputStr, int maxPrecision) {
-        this(inputStr, maxPrecision, true);
-    }
-
     private Calculator setHistoryIndex(int i) {
         historyIndex = i;
         return this;
-    }
-
-    private String sanitizeInputString(String inputStr) {
-        return inputStr.toLowerCase()
-                .replaceAll("--[^\\s]+", "")
-                .replaceAll("\\s", "")
-                .replaceAll("[\"@€]", "")
-                .replace("**", "^")
-                .replace("×", "*")
-                .replace("÷", "/")
-                .replaceAll("(?<![a-z])ans(?![a-z])", "(@)")
-                .replaceAll("(?<![a-z])π(?![a-z])", "(π)")
-                .replaceAll("(?<![a-z])pi(?![a-z])", "(π)")
-                .replaceAll("(?<![a-z])e(?![a-z])", "(€)")
-                .replaceAll("(?<![a-z])τ(?![a-z])", "(τ)")
-                .replaceAll("(?<![a-z])tau(?![a-z])", "(τ)")
-                .replaceAll("(?<![a-z])rand\\(\\)", "rand(1)")
-                .replace(")(", ")*(")
-                .replace("0(", "0*(")
-                .replace("1(", "1*(")
-                .replace("2(", "2*(")
-                .replace("3(", "3*(")
-                .replace("4(", "4*(")
-                .replace("5(", "5*(")
-                .replace("6(", "6*(")
-                .replace("7(", "7*(")
-                .replace("8(", "8*(")
-                .replace("9(", "9*(");
     }
 
     //private static final Pattern ALMOST_ZERO = Pattern.compile("^0+1$");
@@ -156,10 +123,21 @@ public class Calculator {
         }
     }
 
+    private boolean untilCharOrLeftBracket() {
+        while (ch == ' ') nextChar();
+        if (ch == '(' || Character.isLetter(ch)) {
+            return true;
+        }
+        return false;
+    }
+
     private Apfloat  parseTerm() {
         Apfloat  x = parseFactor();
         while (true) {
             if      (eat('*')) x = x.multiply(parseFactor()); // multiplication
+            else if (untilCharOrLeftBracket()) {
+                x = x.multiply(parseFactor());
+            }
             else if (eat('/')) x = x.divide(parseFactor()); // division
             else return x;
         }
@@ -177,24 +155,6 @@ public class Calculator {
         } else if ((ch >= '0' && ch <= '9') || ch == '.') { // numbers
             while ((ch >= '0' && ch <= '9') || ch == '.') nextChar();
             x = new Apfloat(inputStr.substring(startPos, this.pos), precision);
-        } else if (eat('π')) { //pi
-            x = ApfloatMath.pi(precision);
-        } else if (eat('€')) { //e:
-            x = e(precision);
-        } else if (eat('τ')) { //tau = 2pi
-            x = ApfloatMath.pi(precision).multiply(new Apfloat(2, precision));
-        } else if (eat('@')) { //ans
-            String last = history.get(history.size() - historyIndex);
-            String str = handleEqualSigns(last, precision, historyIndex + 1);
-            if (str == null) {
-                x = history.size() - historyIndex >= 0 ? new Calculator(last, precision).setHistoryIndex(historyIndex + 1).calculate() : Apfloat.ZERO;
-            } else if (str.equals("true")) {
-                x = new Apfloat(1, precision);
-            } else if (str.equals("false")) {
-                x = new Apfloat(0, precision);
-            } else {
-                x = new Apfloat(str, precision);
-            }
         } else if (ch >= 'a' && ch <= 'z') { // functions
             while (ch >= 'a' && ch <= 'z') nextChar();
             String func = inputStr.substring(startPos, this.pos);
@@ -266,10 +226,48 @@ public class Calculator {
                     default:
                         throw new RuntimeException("Unknown function: " + func);
                 }
-            } else if(variables.containsKey(func)) {
-                x = new Apfloat(variables.get(func), precision);
-            } else {
-                throw new RuntimeException("Unknown variable: " + func);
+            } else { // vars and constants
+                switch(func) {
+                    case "ans": {
+                        String last = history.get(history.size() - historyIndex);
+                        String str = handleEqualSigns(last, precision, historyIndex + 1);
+                        if (str == null) {
+                            x = history.size() - historyIndex >= 0 ? new Calculator(last, precision).setHistoryIndex(historyIndex + 1).calculate() : Apfloat.ZERO;
+                        } else if (str.equals("true")) {
+                            x = new Apfloat(1, precision);
+                        } else if (str.equals("false")) {
+                            x = new Apfloat(0, precision);
+                        } else {
+                            x = new Apfloat(str, precision);
+                        }
+                        break;
+                    }
+                    case "c": {
+                        x = new Apfloat(299792458, precision);
+                        break;
+                    }
+                    case "e": {
+                        x = e(precision);
+                        break;
+                    }
+                    case "pi":
+                    case "π": {
+                        x = ApfloatMath.pi(precision);
+                        break;
+                    }
+                    case "tau":
+                    case "τ": {
+                        x = ApfloatMath.pi(precision).multiply(new Apfloat(2, precision));
+                        break;
+                    }
+                    default: {
+                        if (variables.containsKey(func)) {
+                            x = new Apfloat(variables.get(func), precision);
+                        } else {
+                            throw new RuntimeException("Unknown variable: " + func);
+                        }
+                    }
+                }
             }
         } else {
             if (ch != -1) throw new RuntimeException("Unexpected: \"" + (char) ch + "\" in \"" + inputStr + "\" at Index: " + pos);
@@ -291,6 +289,7 @@ public class Calculator {
     }
 
     private static final List<String> history = new LinkedList<>();
+
     public static void main(String[] args) {
         try {
             if (args.length == 0) {
@@ -461,7 +460,8 @@ public class Calculator {
             "You can use following constants:\n"
             + " - pi/π\n"
             + " - tau/τ\n"
-            + " - e\n" +
+            + " - e\n"
+            + " - c=299792458\n" +
             "You can use following flags:\n"
             + " - '--exponential'/'--e'/'--scientific'/'--s'\n"
             + " - '--precision=99'/'--p=99'\n" +
@@ -530,7 +530,7 @@ public class Calculator {
 
         String result;
         try {
-            result = new Calculator(input, -1, false).calculate().toString(true);
+            result = new Calculator(input, -1).calculate().toString(true);
         } catch(Exception ignored) {
             String[] inputArr = input.split("\\s+");
             StringBuilder sb = new StringBuilder(inputArr.length);
