@@ -17,19 +17,18 @@ import java.util.function.Function;
 import java.util.regex.Pattern;
 
 public class Calculator {
+    private static final int DEFAULT_DECIMALS = 20;
     private static final HashMap<String, String> variables = new HashMap<>();
 
     private final int maxPrecision;
-    private int pos = -1, ch, precision = 100;
-    private boolean b1 = false, forcePrecision = false;
     private final String inputStr;
 
+    private int pos = -1, ch, precision = 100;
+    private boolean b1 = false, forcePrecision = false;
     private int historyIndex = 1;
 
-    private static final int DEFAULT_DECIMALS = 20;
-
     Calculator(String inputStr, int maxPrecision) {
-        this.inputStr = inputStr.replaceAll("--[^\\s]+", "");
+        this.inputStr = inputStr;
         if (maxPrecision == -1) {
             this.maxPrecision = 1000000;
         } else {
@@ -113,7 +112,6 @@ public class Calculator {
     // term = factor | term `*` factor | term `/` factor
     // factor = `+` factor | `-` factor | `(` expression `)`
     //        | number | functionName factor | factor `^` factor
-
     private Apfloat  parseExpression() {
         Apfloat  x = parseTerm();
         for (;;) {
@@ -232,7 +230,10 @@ public class Calculator {
                         String last = history.get(history.size() - historyIndex);
                         String str = handleEqualSigns(last, precision, historyIndex + 1);
                         if (str == null) {
-                            x = history.size() - historyIndex >= 0 ? new Calculator(last, precision).setHistoryIndex(historyIndex + 1).calculate() : Apfloat.ZERO;
+                            x = history.size() - historyIndex >= 0
+                                    ? new Calculator(last.replaceAll("--[^\\s]+", ""), precision)
+                                    .setHistoryIndex(historyIndex + 1).calculate()
+                                    : Apfloat.ZERO;
                         } else if (str.equals("true")) {
                             x = new Apfloat(1, precision);
                         } else if (str.equals("false")) {
@@ -566,7 +567,6 @@ public class Calculator {
             }
 
         }
-
 
         writeToTerminal(terminal, "→ " + result + "\n", TextColor.ANSI.GREEN_BRIGHT, SGR.BOLD);
         writeToTerminal(terminal, String.format("Calculated in %fms\n", (System.nanoTime() - time) / 1_000_000.0), TextColor.ANSI.BLUE_BRIGHT);
