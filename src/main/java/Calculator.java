@@ -555,8 +555,6 @@ public class Calculator {
                 }
             }
 
-            System.out.println(pretty);
-
             input = sb.toString();
             result = handleEqualSigns(input, precision);
 
@@ -569,7 +567,9 @@ public class Calculator {
         }
 
         writeToTerminal(terminal, "→ " + result + "\n", TextColor.ANSI.GREEN_BRIGHT, SGR.BOLD);
-        if (debug) writeToTerminal(terminal, String.format("Calculated in %fms\n", (System.nanoTime() - time) / 1_000_000.0), TextColor.ANSI.BLUE_BRIGHT);
+        if (debug) {
+            writeToTerminal(terminal, String.format("Calculated in %fms\n", (System.nanoTime() - time) / 1_000_000.0), TextColor.ANSI.BLUE_BRIGHT);
+        }
     }
 
     private static String handleEqualSigns(String input, int precision) {
