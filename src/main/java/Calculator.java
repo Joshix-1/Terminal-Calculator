@@ -123,20 +123,17 @@ public class Calculator {
 
     private boolean untilCharOrLeftBracket() {
         while (ch == ' ') nextChar();
-        if (ch == '(' || Character.isLetter(ch)) {
-            return true;
-        }
-        return false;
+        return ch == '(' || Character.isLetter(ch);
     }
 
     private Apfloat  parseTerm() {
         Apfloat  x = parseFactor();
         while (true) {
-            if      (eat('*')) x = x.multiply(parseFactor()); // multiplication
+            if      (eat('*') || eat('×')) x = x.multiply(parseFactor()); // multiplication
             else if (untilCharOrLeftBracket()) {
                 x = x.multiply(parseFactor());
             }
-            else if (eat('/')) x = x.divide(parseFactor()); // division
+            else if (eat('/') || eat('÷')) x = x.divide(parseFactor()); // division
             else return x;
         }
     }
@@ -293,9 +290,8 @@ public class Calculator {
 
     public static void main(String[] args) {
         try {
+            Terminal terminal = new DefaultTerminalFactory(System.out, System.in, StandardCharsets.UTF_8).createTerminal();
             if (args.length == 0) {
-                Terminal terminal = new DefaultTerminalFactory(System.out, System.in, StandardCharsets.UTF_8).createTerminal();
-
                 writeToTerminal(terminal, "> ", TextColor.ANSI.GREEN);
 
                 int historyIndex = 0;
@@ -420,7 +416,6 @@ public class Calculator {
                     }
                 }
             } else {
-                Terminal terminal = new DefaultTerminalFactory(System.out, System.in, StandardCharsets.UTF_8).createTerminal();
                 calculate(terminal, String.join(" ", args));
                 terminal.close();
                 System.exit(0);
@@ -457,15 +452,12 @@ public class Calculator {
             + " - '/'/'÷'\n"
             + " - '+'\n"
             + " - '-'\n"
-            + " - '^'/'**'\n" +
+            + " - '^'\n" +
             "You can use following constants:\n"
             + " - pi/π\n"
             + " - tau/τ\n"
             + " - e\n"
             + " - c=299792458\n" +
-            "You can use following flags:\n"
-            + " - '--exponential'/'--e'/'--scientific'/'--s'\n"
-            + " - '--precision=99'/'--p=99'\n" +
             "You can compare expressions:\n"
             + " - 1=1=2-1 → true\n"
             + " - 1<3<2*3 → true\n"
@@ -477,7 +469,11 @@ public class Calculator {
             + " - '*=' [x*=y → x:=x*y]\n"
             + " - '/=' [x/=y → x:=x/y]\n"
             + " - '+=' [x+=y → x:=x+y]\n"
-            + " - '-=' [x-=y → x:=x-y]\n";
+            + " - '-=' [x-=y → x:=x-y]\n" +
+            "You can use following flags:\n"
+            + " - '--exponential'/'--e'/'--scientific'/'--s'\n"
+            + " - '--precision=99'/'--p=99'\n"
+            + " - '--debug'/'--d'\n";
 
     private static void displayHelp(Terminal terminal) throws IOException {
         writeToTerminal(terminal, HELP_STRING);
@@ -529,6 +525,7 @@ public class Calculator {
     private static void calculate(Terminal terminal, String input) throws IOException {
         long time = System.nanoTime();
 
+        boolean debug = false;
         String result;
         try {
             result = new Calculator(input, -1).calculate().toString(true);
@@ -550,11 +547,15 @@ public class Calculator {
                             writeToTerminal(terminal, e.getMessage() + "\n", TextColor.ANSI.RED);
                             writeToTerminal(terminal, "> ", TextColor.ANSI.GREEN);
                         }
+                    } else if (arg.equals("--debug") || arg.equals("--d")) {
+                        debug = true;
                     }
                 } else {
                     sb.append(arg);
                 }
             }
+
+            System.out.println(pretty);
 
             input = sb.toString();
             result = handleEqualSigns(input, precision);
@@ -565,11 +566,10 @@ public class Calculator {
                     result = result.replace("e", "×10^");
                 }
             }
-
         }
 
         writeToTerminal(terminal, "→ " + result + "\n", TextColor.ANSI.GREEN_BRIGHT, SGR.BOLD);
-        writeToTerminal(terminal, String.format("Calculated in %fms\n", (System.nanoTime() - time) / 1_000_000.0), TextColor.ANSI.BLUE_BRIGHT);
+        if (debug) writeToTerminal(terminal, String.format("Calculated in %fms\n", (System.nanoTime() - time) / 1_000_000.0), TextColor.ANSI.BLUE_BRIGHT);
     }
 
     private static String handleEqualSigns(String input, int precision) {
